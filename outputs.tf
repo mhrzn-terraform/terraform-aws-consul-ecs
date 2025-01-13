@@ -42,3 +42,8 @@ output "bootstrap_token_id" {
   description = "The Consul secret ID of the bootstrap ACL token."
   value       = var.acls ? local.bootstrap_token : null
 }
+
+output "internal_lb_dns_name" {
+  description = "DNS name of load balancer in front of Consul server."
+  value       = var.internal_lb_enabled ? aws_lb.this_internal[0].dns_name : null
+}
