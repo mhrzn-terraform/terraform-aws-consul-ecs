@@ -1,11 +1,3 @@
-# Dev Server
-
-This module deploys a Consul server as an ECS Task for development/testing purposes.
-
-See https://www.consul.io/docs/ecs for additional documentation.
-
-## Usage
-```bash
 resource "aws_cloudwatch_log_group" "consul_lg" {
   name              = "consul-${var.env}"
   retention_in_days = 7
@@ -15,16 +7,16 @@ module "consul" {
   name                        = "consul-${var.env}"
   source                      = "mhrzn-terraform/consul-ecs/aws"
   version                     = "1.1.2"
-  ecs_cluster_arn             = <cluster_arn>
+  ecs_cluster_arn             = module.extasy_cluster.aws_ecs_cluster_cluster_arn
   cpu                         = 4096
   memory                      = 8192
-  subnet_ids                  = [<subnet_ids>]
+  subnet_ids                  = var.vpc_pvt_subnet_ids
   lb_enabled                  = true
   vpc_id                      = var.vpc_id
-  lb_subnets                  = [<subnet_ids>]
+  lb_subnets                  = var.vpc_pub_subnet_ids
   lb_ingress_rule_cidr_blocks = ["${var.vpc_cidr}","xx.xx.xx.xx/32"]
   internal_lb_enabled         = true
-  internal_lb_subnets         = [<subnet_ids>]
+  internal_lb_subnets         = var.vpc_pvt_subnet_ids
 
   log_configuration = {
     logDriver = "awslogs"
@@ -47,4 +39,3 @@ resource "aws_security_group_rule" "consul_ingress" {
   security_group_id        = module.consul.security_group_id
   cidr_blocks              = ["${var.vpc_cidr}"]
 }
-```
