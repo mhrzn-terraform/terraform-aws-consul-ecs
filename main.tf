@@ -163,14 +163,6 @@ resource "aws_efs_file_system" "this" {
   }
 }
 
-resource "aws_efs_file_system" "this" {
-  creation_token = var.name
-
-  tags = {
-    Name = var.name
-  }
-}
-
 resource "aws_efs_access_point" "this" {
   file_system_id = aws_efs_file_system.this.id
 }
