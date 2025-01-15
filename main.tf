@@ -118,12 +118,75 @@ resource "aws_ecs_service" "this" {
       container_port   = load_balancer.value["container_port"]
     }
   }
+
+  dynamic "load_balancer" {
+    for_each = local.internal_load_balancer
+    content {
+      target_group_arn = load_balancer.value["target_group_arn"]
+      container_name   = load_balancer.value["container_name"]
+      container_port   = load_balancer.value["container_port"]
+    }
+  }
+
   enable_execute_command = true
   wait_for_steady_state  = var.wait_for_steady_state
 
   depends_on = [
     aws_iam_role.this_task
   ]
+}
+
+resource "aws_security_group" "this" {
+  name   = var.name
+  vpc_id = var.vpc_id
+
+  ingress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_efs_file_system" "this" {
+  creation_token = var.name
+
+  tags = {
+    Name = var.name
+  }
+}
+
+resource "aws_efs_file_system" "this" {
+  creation_token = var.name
+
+  tags = {
+    Name = var.name
+  }
+}
+
+resource "aws_efs_access_point" "this" {
+  file_system_id = aws_efs_file_system.this.id
+}
+
+#resource "aws_efs_mount_target" "this" {
+#  file_system_id = aws_efs_file_system.this.id
+#  subnet_id      = var.subnet_ids[0]
+#  security_groups = [aws_security_group.this.id]
+#}
+
+resource "aws_efs_mount_target" "this" {
+  for_each = { for idx, subnet_id in var.subnet_ids : idx => subnet_id }
+
+  file_system_id  = aws_efs_file_system.this.id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.this.id]
 }
 
 resource "aws_ecs_task_definition" "this" {
@@ -134,8 +197,21 @@ resource "aws_ecs_task_definition" "this" {
   memory                   = var.memory
   execution_role_arn       = aws_iam_role.this_execution.arn
   task_role_arn            = aws_iam_role.this_task.arn
+  //volume {
+  //  name = "consul-data"
+  //}
   volume {
     name = "consul-data"
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.this.id
+      root_directory          = "/"
+      transit_encryption      = "ENABLED"
+      transit_encryption_port = 2999
+      authorization_config {
+        access_point_id = aws_efs_access_point.this.id
+        iam             = "ENABLED"
+      }
+    }
   }
   container_definitions = jsonencode(concat(
     local.tls_init_containers,
